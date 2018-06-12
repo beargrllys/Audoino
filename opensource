@@ -1,0 +1,263 @@
+int led[4][3] = {{2,5,4},{10,8,9},{3,7,6},{11,12,13}};//led의 연결을 정리합니다.
+bool sw[]={true,true,true}, recode_Mode[]={false,false,false},loop_Mode[]={false,false,false},take_color=false,counting=false;//초기화면 여부를 판별합니다.
+int  color[3][20], before_binary[3]={0,0,0}, now_binary[3]={0,0,0}, task[3]={0,0,0};
+int sen[3],before[3],tab_num[3]={0,0,0},max_num[3],ledcount=3, loop_mode[3]={0,0,0},button_time[3]={0,0,0},standard[3]={0,0,0},standard_light[3]={0,0,0};//불과 불사이 시간차,불이 켜져있는 시간
+unsigned long delay_time[3][40],old_time[3], record_start_time[3],record_time[3],delta_time[3];
+void setup() {
+  for(int i=0;i<4;i++){
+    for(int j=0;j<3;j++){
+      pinMode(led[i][j],OUTPUT);
+      digitalWrite(led[i][j],HIGH);
+      }
+    }
+    standard[0]=analogRead(A0);
+    standard[1]=analogRead(A1);
+    standard[2]=analogRead(A2);
+    standard_light[0]=analogRead(A3);
+    standard_light[1]=analogRead(A4);
+    standard_light[2]=analogRead(A5);
+  Serial.begin(9600);
+}
+//색깔 구성을 위한 함수들입니다.
+void on_R(int i){
+  digitalWrite(led[i][0],LOW);
+  digitalWrite(led[i][1],HIGH);
+  digitalWrite(led[i][2],HIGH);
+  }
+void on_RG(int i){
+  digitalWrite(led[i][0],LOW);
+  digitalWrite(led[i][1],LOW);
+  digitalWrite(led[i][2],HIGH);
+  }
+void on_G(int i){
+  digitalWrite(led[i][0],HIGH);
+  digitalWrite(led[i][1],LOW);
+  digitalWrite(led[i][2],HIGH);
+  }
+void on_GB(int i){
+  digitalWrite(led[i][0],HIGH);
+  digitalWrite(led[i][1],LOW);
+  digitalWrite(led[i][2],LOW);
+  }
+void on_B(int i){
+  digitalWrite(led[i][0],HIGH);
+  digitalWrite(led[i][1],HIGH);
+  digitalWrite(led[i][2],LOW);
+  }
+void on_W(int i){
+  digitalWrite(led[i][0],LOW);
+  digitalWrite(led[i][1],LOW);
+  digitalWrite(led[i][2],LOW);
+  }
+void off(int i){
+  digitalWrite(led[i][0],HIGH);
+  digitalWrite(led[i][1],HIGH);
+  digitalWrite(led[i][2],HIGH);
+  }
+
+void first_led(int i){//초기화면 구성 코드입니다.
+    switch (i){
+    case 0:on_W(i);break;
+    case 1:on_W(i);break;
+    case 2:on_W(i);break;
+    case 3:on_W(i);break;
+    }
+  }
+
+void color_maker(int num, int color_code){
+  switch (color_code){
+    case 0:on_B(num);break; 
+    case 1:on_GB(num);break; 
+    case 2:on_G(num);break; 
+    case 3:on_RG(num);break; 
+    case 4:on_R(num);break; 
+  }
+}
+
+void Aarry_reset(int num){
+    for(int j=0; j<40; j++){
+    delay_time[num][j]=0;
+    
+  }
+    for(int j=0; j<20; j++){
+    color[num][j]=0;
+    }
+  }
+int binary(int val){
+    if(val>15){
+      return 1;
+      }
+    else{
+      return 0;
+      }
+  }
+void color_match(int num,int sen){
+  int mapping;
+  if(sen>max_num[num]){
+    max_num[num]=sen;
+    }
+  if(num==0){
+  mapping = map(max_num[num],0,600,0,4);}
+  if(num!=0){
+    mapping = map(max_num[num],0,400,0,4);
+    }
+  color[num][tab_num[num]/2]=mapping;
+  switch (mapping){
+    case 0:on_B(num);break; 
+    case 1:on_GB(num);break; 
+    case 2:on_G(num);break; 
+    case 3:on_RG(num);break; 
+    case 4:on_R(num);break; 
+    }
+  }
+void color_reset(int num){
+    off(num);
+    max_num[num]=0;
+  } 
+
+void record_start(int num){
+    if(record_start_time[num]!=0){
+        record_time[num] = millis()-record_start_time[num];
+      } 
+    else{
+      record_start_time[num] = millis();
+      }
+  }
+
+void sign_control(unsigned long timenum){
+    if(timenum<=1000){
+      on_R(3);
+      }
+    if(timenum<=2000 && timenum>1000){
+      on_RG(3);
+      }
+    if(timenum<=3000 && timenum>2000){
+      on_W(3);
+      }
+    if(timenum>3000){
+      on_W(3);
+      }
+  }
+
+void record_end(int num){
+  record_start_time[num]=0;
+  record_time[num]=0;
+  }
+void button(int num){
+  button_time[num]=millis();
+  }
+
+void timer_start(int num){
+  
+   old_time[num] = millis();
+  }
+
+void timer_end(int num){
+    delta_time[num] = millis() - old_time[num];
+  }
+void timer_reset(int num){
+  old_time[num]=0;
+  delta_time[num]=0;
+  }
+
+void loop() {
+  sen[0]=analogRead(A0)-standard[0];
+  sen[1]=analogRead(A1)-standard[1];
+  sen[2]=analogRead(A2)-standard[2];
+  task[0]=analogRead(A3);
+  task[1]=analogRead(A4);
+  task[2]=analogRead(A5);
+  //Serial.println(sen[0]);
+  Serial.println(task[0]);
+  //Serial.println(sen[2]);
+  for(int i=0; i<3; i++){
+    before_binary[i] = now_binary[i];
+    now_binary[i] = binary(sen[i]);
+    if(sw[i]){
+        //first_led(i);//초기화면 구성
+        //초기화면에서 누름
+        /*if(before_binary[i]!=now_binary[i] && now_binary[i] == 1){
+          button(i);
+        }*/
+        //if(before_binary[i]!=now_binary[i] && now_binary[i] == 0 && (millis()-button_time[i])>1000){
+        if(!counting){
+        off(3);
+        }
+        if(standard_light[i]-task[i]>150){
+          button_time[i]=0;
+          sw[i]=false;recode_Mode[i]=true;
+          timer_start(i);
+          off(i);
+        }
+        else{
+          first_led(i);
+          }
+        }
+      if(recode_Mode[i]){
+        counting=true;
+        record_start(i);
+        //기록 모드에서 화면에서 누름
+        sign_control(record_time[i]);
+        if(before_binary[i]!=now_binary[i] && now_binary[i] == 1){//버튼이 눌렸다.
+          timer_end(i);
+          delay_time[i][tab_num[i]]=delta_time[i];
+          tab_num[i]++;
+          timer_reset(i);
+          timer_start(i);
+          take_color=true;
+          }
+          if(take_color){
+            color_match(i,sen[i]);
+            }
+        if(before_binary[i]!=now_binary[i] && now_binary[i] == 0){//버튼이 떨어졌다.
+          take_color=false;
+          color_reset(i);
+          timer_end(i);
+          color_reset(i);
+          delay_time[i][tab_num[i]]=delta_time[i];
+          tab_num[i]++;
+          timer_reset(i);
+          timer_start(i);
+          }
+        if(record_time[i]>3000||tab_num[i]>19){//3초가 지나거나 20번이상 탭하면 반복 모드로 변경
+            take_color=false;
+            color_reset(i);
+            record_end(i);
+            timer_reset(i);
+            tab_num[i]=0;
+            record_time[i]=0;
+            recode_Mode[i]=false;loop_Mode[i]=true;counting=false;
+            old_time[i]=millis();
+          }
+        }
+      if(loop_Mode[i]){
+        if(!counting){
+        off(3);
+        }
+        delta_time[i] = millis();
+        if(delta_time[i]-old_time[i]<delay_time[i][loop_mode[i]]){//시간이 안 지났다
+          if(loop_mode[i]%2==1){
+              color_maker(i,color[i][loop_mode[i]/2]);
+            }
+          else{
+            off(i);
+            }
+          }
+        else{
+          old_time[i]=millis();
+          loop_mode[i]++;
+          }
+        if((delay_time[i][loop_mode[i]]==0&&delay_time[i][loop_mode[i]+1]==0)||loop_mode[i]>39){
+            old_time[i]=millis();
+            loop_mode[i]=0;
+          }
+        if(standard_light[i]-task[i]<150 || before_binary[i]!=now_binary[i] && now_binary[i] == 0){
+          button_time[i]=0;
+          Aarry_reset(i);
+          loop_Mode[i]=false;sw[i]=true;//반복 모드 에서 화면을 누를시
+          loop_mode[i] =0;
+        }
+        }
+    }
+    delay(10);
+}
